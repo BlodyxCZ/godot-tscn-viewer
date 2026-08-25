@@ -14,44 +14,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Godot
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${GODOT_VERSION}-stable"
-          curl -fL "https://github.com/godotengine/godot/releases/download/${TAG}/Godot_v${TAG}_linux.x86_64.zip" -o "$RUNNER_TEMP/godot.zip"
-          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
-          GODOT_BIN="$RUNNER_TEMP/godot/Godot_v${TAG}_linux.x86_64"
-          chmod +x "$GODOT_BIN"
-          ln -s "$GODOT_BIN" "$RUNNER_TEMP/godot/godot"
-          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
-
-      - name: Install Web export templates
+      - name: Download Web export templates
         shell: bash
         run: |
           set -euo pipefail
           TAG="${GODOT_VERSION}-stable"
           curl -fL "https://github.com/godotengine/godot/releases/download/${TAG}/Godot_v${TAG}_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
           unzip -q "$RUNNER_TEMP/templates.tpz" -d "$RUNNER_TEMP/export-templates"
-          TEMPLATE_ROOT="$RUNNER_TEMP/export-templates/templates"
-          TEMPLATE_VERSION=$(tr -d '\r\n' < "$TEMPLATE_ROOT/version.txt")
-          DEST="$HOME/.local/share/godot/export_templates/$TEMPLATE_VERSION"
-          echo "Installing templates for exact Godot config: $TEMPLATE_VERSION"
-          mkdir -p "$DEST"
-          cp -a "$TEMPLATE_ROOT/." "$DEST/"
-          ls -lh "$DEST/web_nothreads_release.zip" "$DEST/version.txt"
+          TEMPLATE="$RUNNER_TEMP/export-templates/templates/web_nothreads_release.zip"
+          test -s "$TEMPLATE"
+          unzip -l "$TEMPLATE"
 
-      - name: Build shared browser runtime
+      - name: Extract shared browser runtime
         shell: bash
         run: |
           set -euo pipefail
+          TEMPLATE="$RUNNER_TEMP/export-templates/templates/web_nothreads_release.zip"
           OUT="$RUNNER_TEMP/runtime"
           mkdir -p "$OUT"
-          godot --headless --verbose --path .github/runtime --import
-          godot --headless --verbose --path .github/runtime --export-release "Web Runtime" "$OUT/godot.html"
+          unzip -q "$TEMPLATE" -d "$OUT"
+          find "$OUT" -maxdepth 2 -type f -printf '%P %s bytes\n' | sort
           test -s "$OUT/godot.js"
           test -s "$OUT/godot.wasm"
-          ls -lh "$OUT"
 
       - name: Validate viewer tests and JavaScript
         shell: bash
