@@ -183,6 +183,12 @@ Godot 4.8 is currently a **preview line**, because `4.8-stable` has not been rel
 
 The viewer includes a standalone runner that displays **only the Godot scene**, without the inspector UI.
 
+When a playable scene is open, the **Play** toolbar gives you the share links directly:
+
+- **Copy viewer link** — copies the normal viewer URL for the current `.tscn`.
+- **Copy fullscreen link** — copies the standalone playable runner URL.
+- **Open fullscreen** — opens the standalone playable preview in a new tab.
+
 Example:
 
 ```text
