@@ -44,7 +44,7 @@ jobs:
             exit 1
           fi
 
-      - name: Install Godot and Web export templates
+      - name: Install Godot
         shell: bash
         env:
           GODOT_VERSION: ${{ inputs.godot-version }}
@@ -57,12 +57,6 @@ jobs:
           chmod +x "$GODOT_BIN"
           echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
           ln -s "$GODOT_BIN" "$RUNNER_TEMP/godot/godot"
-
-          curl -fL "https://github.com/godotengine/godot/releases/download/${TAG}/Godot_v${TAG}_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
-          unzip -q "$RUNNER_TEMP/templates.tpz" -d "$RUNNER_TEMP/export-templates"
-          DEST="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
-          mkdir -p "$DEST"
-          cp -a "$RUNNER_TEMP/export-templates/templates/." "$DEST/"
 
       - name: Prepare temporary preview project
         shell: bash
