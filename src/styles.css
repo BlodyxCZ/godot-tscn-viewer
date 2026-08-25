@@ -102,8 +102,16 @@ footer { color: var(--muted); text-align: center; font-size: 12px; padding: 20px
 
 .play-panel { padding: 0; overflow: hidden; min-height: 560px; }
 .play-shell { min-height: 560px; display: flex; flex-direction: column; }
-.play-toolbar { min-height: 48px; display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 0 14px; border-bottom: 1px solid var(--border); color: var(--muted); }
+.play-toolbar { min-height: 48px; display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 8px 14px; border-bottom: 1px solid var(--border); color: var(--muted); }
+.play-toolbar-info { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.play-toolbar-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.play-toolbar-actions .button { padding: 7px 10px; font-size: 12px; white-space: nowrap; }
 .play-frame { width: 100%; flex: 1; min-height: 512px; border: 0; background: #101217; }
 .play-empty { padding: 32px; max-width: 760px; }
 .play-empty pre { overflow: auto; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+@media (max-width: 900px) {
+  .play-toolbar { align-items: flex-start; flex-direction: column; }
+  .play-toolbar-info { width: 100%; }
+  .play-toolbar-actions { width: 100%; justify-content: flex-start; }
+}
 @media (max-width: 720px) { .play-panel, .play-shell { min-height: 440px; } .play-frame { min-height: 392px; } }
