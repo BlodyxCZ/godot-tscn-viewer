@@ -1,4 +1,22 @@
-import { runnerUrl } from '../play/preview.js';
+import { runnerUrl, viewerUrl } from '../play/preview.js';
+
+function makeButton(label) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'button secondary';
+  button.textContent = label;
+  return button;
+}
+
+async function copyLink(button, url, idleLabel) {
+  try {
+    await navigator.clipboard.writeText(url);
+    button.textContent = 'Copied!';
+  } catch {
+    button.textContent = 'Copy failed';
+  }
+  window.setTimeout(() => { button.textContent = idleLabel; }, 1400);
+}
 
 export function renderPlay(container, target, manifest) {
   container.replaceChildren();
@@ -23,12 +41,26 @@ export function renderPlay(container, target, manifest) {
   const toolbar = document.createElement('div');
   toolbar.className = 'play-toolbar';
   const info = document.createElement('span');
+  info.className = 'play-toolbar-info';
   info.textContent = `Godot ${manifest.godot_version} · preview build ${manifest.source_sha ? manifest.source_sha.slice(0, 8) : 'unknown'}`;
-  const restart = document.createElement('button');
-  restart.type = 'button';
-  restart.className = 'button secondary';
-  restart.textContent = 'Restart';
-  toolbar.append(info, restart);
+
+  const actions = document.createElement('div');
+  actions.className = 'play-toolbar-actions';
+
+  const copyViewer = makeButton('Copy viewer link');
+  const copyFullscreen = makeButton('Copy fullscreen link');
+  const openFullscreen = makeButton('Open fullscreen');
+  const restart = makeButton('Restart');
+
+  const viewerShareUrl = viewerUrl(target);
+  const fullscreenUrl = runnerUrl(target, manifest);
+
+  copyViewer.addEventListener('click', () => copyLink(copyViewer, viewerShareUrl, 'Copy viewer link'));
+  copyFullscreen.addEventListener('click', () => copyLink(copyFullscreen, fullscreenUrl, 'Copy fullscreen link'));
+  openFullscreen.addEventListener('click', () => window.open(fullscreenUrl, '_blank', 'noopener,noreferrer'));
+
+  actions.append(copyViewer, copyFullscreen, openFullscreen, restart);
+  toolbar.append(info, actions);
 
   const frame = document.createElement('iframe');
   frame.className = 'play-frame';
@@ -37,13 +69,12 @@ export function renderPlay(container, target, manifest) {
   frame.allow = 'fullscreen; autoplay; gamepad';
   frame.referrerPolicy = 'no-referrer';
 
-  const src = runnerUrl(target, manifest);
   const start = () => {
     frame.src = 'about:blank';
-    requestAnimationFrame(() => { frame.src = src; });
+    requestAnimationFrame(() => { frame.src = fullscreenUrl; });
   };
   restart.addEventListener('click', start);
-  frame.src = src;
+  frame.src = fullscreenUrl;
 
   shell.append(toolbar, frame);
   container.append(shell);

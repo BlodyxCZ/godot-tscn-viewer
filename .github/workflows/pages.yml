@@ -14,9 +14,6 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
-env:
-  GODOT_VERSION: "4.7"
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -27,8 +24,64 @@ jobs:
           node-version: 22
       - run: npm test
 
-  deploy:
+  runtime:
     needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - line: "4.3"
+            tag: "4.3-stable"
+          - line: "4.4"
+            tag: "4.4.1-stable"
+          - line: "4.5"
+            tag: "4.5.2-stable"
+          - line: "4.6"
+            tag: "4.6.3-stable"
+          - line: "4.7"
+            tag: "4.7.2-stable"
+          - line: "4.8"
+            tag: "4.8-dev3"
+    steps:
+      - name: Restore shared Godot Web runtime cache
+        id: runtime-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/godot-tscn-viewer/runtime/${{ matrix.line }}
+          key: godot-tscn-viewer-web-runtime-${{ matrix.line }}-${{ matrix.tag }}-nothreads-v1
+
+      - name: Build shared Godot Web runtime cache
+        if: steps.runtime-cache.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          GODOT_LINE: ${{ matrix.line }}
+          GODOT_RELEASE_TAG: ${{ matrix.tag }}
+        run: |
+          set -euo pipefail
+          URL="https://github.com/godotengine/godot-builds/releases/download/${GODOT_RELEASE_TAG}/Godot_v${GODOT_RELEASE_TAG}_export_templates.tpz"
+          curl -fL "$URL" -o "$RUNNER_TEMP/templates.tpz"
+          unzip -q "$RUNNER_TEMP/templates.tpz" -d "$RUNNER_TEMP/export-templates"
+          TEMPLATE="$RUNNER_TEMP/export-templates/templates/web_nothreads_release.zip"
+          test -s "$TEMPLATE"
+
+          CACHE="$HOME/.cache/godot-tscn-viewer/runtime/${GODOT_LINE}"
+          mkdir -p "$CACHE"
+          unzip -q "$TEMPLATE" -d "$CACHE"
+          test -s "$CACHE/godot.js"
+          test -s "$CACHE/godot.wasm"
+          rm -f "$CACHE/godot.html" "$CACHE/godot.offline.html" "$CACHE/godot.service.worker.js"
+
+      - name: Upload runtime bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.line }}
+          path: ~/.cache/godot-tscn-viewer/runtime/${{ matrix.line }}
+          if-no-files-found: error
+          retention-days: 1
+
+  deploy:
+    needs: [test, runtime]
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -42,41 +95,20 @@ jobs:
           mkdir _site
           rsync -a --exclude '.git' --exclude '_site' ./ _site/
 
-      - name: Restore shared Godot Web runtime cache
-        id: runtime-cache
-        uses: actions/cache@v4
+      - name: Stage shared Godot Web runtimes
+        uses: actions/download-artifact@v4
         with:
-          path: ~/.cache/godot-tscn-viewer/runtime/${{ env.GODOT_VERSION }}
-          key: godot-tscn-viewer-web-runtime-${{ env.GODOT_VERSION }}-nothreads-v1
+          pattern: 4.*
+          path: _site/runtime
 
-      - name: Build shared Godot Web runtime cache
-        if: steps.runtime-cache.outputs.cache-hit != 'true'
+      - name: Verify runtime layout
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${GODOT_VERSION}-stable"
-          curl -fL "https://github.com/godotengine/godot/releases/download/${TAG}/Godot_v${TAG}_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
-          unzip -q "$RUNNER_TEMP/templates.tpz" -d "$RUNNER_TEMP/export-templates"
-          TEMPLATE="$RUNNER_TEMP/export-templates/templates/web_nothreads_release.zip"
-          test -s "$TEMPLATE"
-
-          CACHE="$HOME/.cache/godot-tscn-viewer/runtime/${GODOT_VERSION}"
-          mkdir -p "$CACHE"
-          unzip -q "$TEMPLATE" -d "$CACHE"
-          test -s "$CACHE/godot.js"
-          test -s "$CACHE/godot.wasm"
-
-      - name: Stage shared Godot Web runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          SOURCE="$HOME/.cache/godot-tscn-viewer/runtime/${GODOT_VERSION}"
-          DEST="$GITHUB_WORKSPACE/_site/runtime/${GODOT_VERSION}"
-          test -s "$SOURCE/godot.js"
-          test -s "$SOURCE/godot.wasm"
-          mkdir -p "$DEST"
-          cp -a "$SOURCE/." "$DEST/"
-          rm -f "$DEST/godot.html" "$DEST/godot.offline.html" "$DEST/godot.service.worker.js"
+          for VERSION in 4.3 4.4 4.5 4.6 4.7 4.8; do
+            test -s "_site/runtime/$VERSION/godot.js"
+            test -s "_site/runtime/$VERSION/godot.wasm"
+          done
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

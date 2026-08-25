@@ -4,12 +4,18 @@
   const repo = params.get('repo');
   const scene = params.get('scene');
   const godot = params.get('godot');
+  const runtime = params.get('runtime') || resolveRuntimeVersion(godot);
   const pack = params.get('pack');
   const status = document.getElementById('status');
   const progress = document.getElementById('progress');
   const overlay = document.getElementById('overlay');
   const errorBox = document.getElementById('error');
   const canvas = document.getElementById('canvas');
+
+  function resolveRuntimeVersion(version) {
+    if (!version || !/^4\.[0-8]$/.test(version)) return null;
+    return Number(version.split('.')[1]) <= 2 ? '4.3' : version;
+  }
 
   function fail(message) {
     status.textContent = 'Preview failed';
@@ -22,7 +28,9 @@
     if (!owner || !/^[A-Za-z0-9_.-]+$/.test(owner)) throw new Error('Invalid repository owner.');
     if (!repo || !/^[A-Za-z0-9_.-]+$/.test(repo)) throw new Error('Invalid repository name.');
     if (!scene || !scene.startsWith('res://') || !scene.endsWith('.tscn') || scene.includes('..')) throw new Error('Invalid scene path.');
-    if (!godot || !/^4\.7(?:\.\d+)?$/.test(godot)) throw new Error('Unsupported Godot runtime.');
+    if (!godot || !/^4\.[0-8]$/.test(godot)) throw new Error('Unsupported Godot project version.');
+    if (!runtime || !/^4\.[3-8]$/.test(runtime)) throw new Error('Unsupported Godot Web runtime.');
+    if (runtime !== resolveRuntimeVersion(godot)) throw new Error('Godot project/runtime mismatch.');
     if (!pack || !/^[A-Za-z0-9._/-]+$/.test(pack) || pack.includes('..') || !pack.endsWith('.pck')) throw new Error('Invalid pack path.');
   }
 
@@ -51,9 +59,11 @@
 
   async function main() {
     validate();
-    const runtimeRoot = new URL(`../runtime/${godot}/`, location.href);
+    const runtimeRoot = new URL(`../runtime/${runtime}/`, location.href);
     const runtimeBase = new URL('godot', runtimeRoot).toString().replace(/\/$/, '');
-    status.textContent = `Loading Godot ${godot}…`;
+    status.textContent = runtime === godot
+      ? `Loading Godot ${godot}…`
+      : `Loading Godot ${godot} preview on Web runtime ${runtime}…`;
     await loadScript(new URL('godot.js', runtimeRoot).toString());
     if (typeof Engine !== 'function') throw new Error('Godot runtime did not expose Engine.');
 

@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       godot-version:
-        description: Godot stable version used for the generated preview pack.
+        description: Godot 4.x minor line used to build the generated preview pack (4.0 through 4.8).
         required: false
         type: string
         default: "4.7"
@@ -44,19 +44,41 @@ jobs:
             exit 1
           fi
 
-      - name: Install Godot
+      - name: Resolve Godot release
         shell: bash
         env:
           GODOT_VERSION: ${{ inputs.godot-version }}
         run: |
           set -euo pipefail
-          TAG="${GODOT_VERSION}-stable"
-          curl -fL "https://github.com/godotengine/godot/releases/download/${TAG}/Godot_v${TAG}_linux.x86_64.zip" -o "$RUNNER_TEMP/godot.zip"
+          case "$GODOT_VERSION" in
+            '4.0') GODOT_RELEASE_TAG='4.0.4-stable' ;;
+            '4.1') GODOT_RELEASE_TAG='4.1.4-stable' ;;
+            '4.2') GODOT_RELEASE_TAG='4.2.2-stable' ;;
+            '4.3') GODOT_RELEASE_TAG='4.3-stable' ;;
+            '4.4') GODOT_RELEASE_TAG='4.4.1-stable' ;;
+            '4.5') GODOT_RELEASE_TAG='4.5.2-stable' ;;
+            '4.6') GODOT_RELEASE_TAG='4.6.3-stable' ;;
+            '4.7') GODOT_RELEASE_TAG='4.7.2-stable' ;;
+            '4.8') GODOT_RELEASE_TAG='4.8-dev3' ;;
+            *)
+              echo "Unsupported Godot version '$GODOT_VERSION'. Choose a minor line from 4.0 through 4.8." >&2
+              exit 1
+              ;;
+          esac
+          echo "GODOT_RELEASE_TAG=$GODOT_RELEASE_TAG" >> "$GITHUB_ENV"
+
+      - name: Install Godot
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://github.com/godotengine/godot-builds/releases/download/${GODOT_RELEASE_TAG}/Godot_v${GODOT_RELEASE_TAG}_linux.x86_64.zip"
+          curl -fL "$URL" -o "$RUNNER_TEMP/godot.zip"
           unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
-          GODOT_BIN="$RUNNER_TEMP/godot/Godot_v${TAG}_linux.x86_64"
+          GODOT_BIN="$RUNNER_TEMP/godot/Godot_v${GODOT_RELEASE_TAG}_linux.x86_64"
           chmod +x "$GODOT_BIN"
           echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
           ln -s "$GODOT_BIN" "$RUNNER_TEMP/godot/godot"
+          "$GODOT_BIN" --version
 
       - name: Prepare temporary preview project
         shell: bash
@@ -66,12 +88,6 @@ jobs:
             --project . \
             --tooling .tscn-viewer-tooling/.github/preview
           rm -rf .tscn-viewer-tooling
-
-      - name: Import and validate project
-        shell: bash
-        run: |
-          set -euo pipefail
-          godot --headless --path . --import
 
       - name: Export preview pack
         shell: bash

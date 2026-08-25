@@ -11,7 +11,7 @@
 
 <p align="center">
   <img alt="Version 1.0.0" src="https://img.shields.io/badge/version-1.0.0-blue">
-  <img alt="Godot 4.7" src="https://img.shields.io/badge/Godot-4.7-478CBF?logo=godot-engine&logoColor=white">
+  <img alt="Godot 4.0 through 4.8" src="https://img.shields.io/badge/Godot-4.0--4.8-478CBF?logo=godot-engine&logoColor=white">
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="No backend" src="https://img.shields.io/badge/backend-none-lightgrey">
 </p>
@@ -24,7 +24,7 @@
 
 Paste a GitHub `.tscn` URL and get a readable view of the scene without cloning the repository or opening Godot.
 
-It can also run **real playable Godot Web previews** for repositories that opt in with a tiny reusable GitHub Actions workflow.
+Repositories can also opt in to **real playable Godot previews** with a small reusable GitHub Actions workflow. The preview pack is built using the selected Godot version and then executed in a sandboxed Godot Web runtime.
 
 ### Viewer features
 
@@ -33,8 +33,8 @@ It can also run **real playable Godot Web previews** for repositories that opt i
 - 📦 **Resources** — inspect `ExtResource` and `SubResource` entries
 - 🔗 **Connections** — view signal connections
 - 🧾 **Source** — read the original `.tscn`
-- ▶️ **Play** — run the selected scene using the real Godot Web runtime
-- 🔒 **Safe rendering** — scene text is never evaluated as JavaScript
+- ▶️ **Play** — run the selected scene using the real Godot engine
+- 🔒 **Safe rendering** — structural scene text is never evaluated as JavaScript
 - ⚡ **No backend** — the viewer runs entirely in the browser
 
 ---
@@ -78,7 +78,7 @@ Godot repository
       ▼
 GitHub Actions
       │
-      ├─ imports the project with Godot
+      ├─ downloads the selected Godot release
       ├─ injects the preview launcher
       └─ exports preview.pck
       │
@@ -90,8 +90,8 @@ tscn-preview branch
       ▼
 Godot TSCN Viewer
       │
-      ├─ shared Godot Web runtime
-      └─ selected .tscn
+      ├─ resolves a sandbox-safe Web runtime
+      └─ launches the selected .tscn
       │
       ▼
    ▶ playable scene
@@ -125,7 +125,13 @@ jobs:
       godot-version: "4.7"
 ```
 
-That's it.
+Set `godot-version` to the Godot 4.x minor line used by your project:
+
+```text
+4.0  4.1  4.2  4.3  4.4  4.5  4.6  4.7  4.8
+```
+
+The workflow pins each minor line to a tested Godot build, so previews remain reproducible even when new patch releases appear.
 
 After the workflow completes, it creates a generated branch:
 
@@ -145,15 +151,51 @@ The workflow generates a temporary minimal Godot project in CI, builds the previ
 
 ---
 
+## Godot version support
+
+Playable previews support selectable **Godot 4.0 through 4.8** minor lines.
+
+| Selected line | Pack builder | Browser Web runtime |
+|---|---|---|
+| `4.0` | Godot `4.0.4-stable` | Godot `4.3` single-thread |
+| `4.1` | Godot `4.1.4-stable` | Godot `4.3` single-thread |
+| `4.2` | Godot `4.2.2-stable` | Godot `4.3` single-thread |
+| `4.3` | Godot `4.3-stable` | Godot `4.3` single-thread |
+| `4.4` | Godot `4.4.1-stable` | Godot `4.4` single-thread |
+| `4.5` | Godot `4.5.2-stable` | Godot `4.5` single-thread |
+| `4.6` | Godot `4.6.3-stable` | Godot `4.6` single-thread |
+| `4.7` | Godot `4.7.2-stable` | Godot `4.7` single-thread |
+| `4.8` | Godot `4.8-dev3` | Godot `4.8` single-thread |
+
+### Why 4.0–4.2 use the 4.3 Web runtime
+
+Godot 4.0–4.2 Web exports are threaded and require cross-origin isolation. That conflicts with the viewer's intentionally restrictive opaque-origin iframe sandbox.
+
+The preview pack is still built with the project's selected 4.0, 4.1, or 4.2 editor. Only browser execution is forwarded to the tested Godot 4.3 single-thread Web runtime. This compatibility path has been verified end-to-end through the preview launcher.
+
+### Godot 4.8
+
+Godot 4.8 is currently a **preview line**, because `4.8-stable` has not been released yet. The `4.8` selection is currently pinned to **`4.8-dev3`** and will be moved to the stable release after it ships and passes the compatibility suite.
+
+---
+
 ## Standalone playable demo
 
 The viewer includes a standalone runner that displays **only the Godot scene**, without the inspector UI.
+
+When a playable scene is open, the **Play** toolbar gives you the share links directly:
+
+- **Copy viewer link** — copies the normal viewer URL for the current `.tscn`.
+- **Copy fullscreen link** — copies the standalone playable runner URL.
+- **Open fullscreen** — opens the standalone playable preview in a new tab.
 
 Example:
 
 ```text
 https://blodyxcz.github.io/godot-tscn-viewer/runner/?owner=BlodyxCZ&repo=Swift-Inventory-Godot-Addon&scene=res%3A%2F%2Faddons%2FSwift_Inventory%2FExample%2Fexample_scene.tscn&godot=4.7&pack=preview.pck
 ```
+
+The runner resolves the correct hosted Web runtime from the selected project version. Existing 4.7 runner links remain valid.
 
 This is useful for demo pages, documentation sites, portfolios, and project websites.
 
@@ -178,7 +220,8 @@ This is useful for demo pages, documentation sites, portfolios, and project webs
 | Feature | Support |
 |---|---|
 | Public GitHub `.tscn` inspection | ✅ |
-| Godot 4.7 | ✅ |
+| Godot 4.0–4.7 stable project lines | ✅ |
+| Godot 4.8 preview line | ✅ Experimental |
 | GDScript projects | ✅ |
 | Normal Godot projects | ✅ |
 | Addon-only repositories | ✅ |
@@ -188,7 +231,6 @@ This is useful for demo pages, documentation sites, portfolios, and project webs
 | Real scripts, signals and physics in Play mode | ✅ |
 | C# / .NET Web projects | ❌ |
 | GDExtension projects | ❌ |
-| Threaded Web builds | ❌ |
 | Private GitHub repositories | ❌ |
 
 Preview packs are currently limited to **95 MB**.
@@ -220,6 +262,8 @@ sandbox="allow-scripts allow-pointer-lock"
 
 `allow-same-origin` is intentionally omitted.
 
+Godot 4.0–4.2 are routed through the 4.3 single-thread runtime specifically so this sandbox does **not** need to be weakened for threaded Web execution.
+
 The viewer never asks visitors for a GitHub token, and generated game data stays in the original project's `tscn-preview` branch.
 
 ---
@@ -228,14 +272,17 @@ The viewer never asks visitors for a GitHub token, and generated game data stays
 
 Target repositories publish only their generated Godot project pack.
 
-The ~40 MB Godot Web engine is hosted once by this project and reused by every playable preview:
+The Godot Web engines are hosted by this project and reused by every playable preview:
 
 ```text
 godot-tscn-viewer
-└── runtime/4.7/
-    ├── godot.js
-    ├── godot.wasm
-    └── audio worklets
+└── runtime/
+    ├── 4.3/
+    ├── 4.4/
+    ├── 4.5/
+    ├── 4.6/
+    ├── 4.7/
+    └── 4.8/
 
 project repository
 └── tscn-preview/
@@ -243,7 +290,7 @@ project repository
     └── preview.pck
 ```
 
-This keeps preview repositories small and avoids duplicating the Godot runtime for every project.
+Each runtime directory contains its matching `godot.js`, `godot.wasm`, and Web support files. GitHub Actions caches the extracted runtime bundles, so the large official export-template archive only needs to be downloaded when a runtime cache is first populated or its pinned release changes.
 
 ---
 
@@ -283,7 +330,8 @@ Version **1.0.0** marks the first complete release of Godot TSCN Viewer:
 - permanent GitHub scene links
 - repository-owned playable preview packs
 - reusable GitHub Actions integration
-- shared Godot 4.7 Web runtime
+- selectable Godot 4.x preview builders
+- shared sandbox-safe Godot Web runtimes
 - addon-only repository support
 - standalone playable runner
 - sandboxed execution
