@@ -124,8 +124,8 @@ jobs:
           WASM="$(find "$RUNNER_TEMP/site" -maxdepth 1 -type f -name '*.wasm' | head -n1)"
           test -s "$JS"
           test -s "$WASM"
-          cp "$JS" "$RUNNER_TEMP/site/godot.js"
-          cp "$WASM" "$RUNNER_TEMP/site/godot.wasm"
+          if [ "$JS" != "$RUNNER_TEMP/site/godot.js" ]; then cp "$JS" "$RUNNER_TEMP/site/godot.js"; fi
+          if [ "$WASM" != "$RUNNER_TEMP/site/godot.wasm" ]; then cp "$WASM" "$RUNNER_TEMP/site/godot.wasm"; fi
           ls -lh "$RUNNER_TEMP/site/godot.js" "$RUNNER_TEMP/site/godot.wasm" "$RUNNER_TEMP/site/preview.pck"
 
       - name: Create browser harness
@@ -181,13 +181,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 -m pip install --quiet websocket-client
           cd "$RUNNER_TEMP/site"
           python3 -m http.server 8765 > "$RUNNER_TEMP/http.log" 2>&1 &
           SERVER_PID=$!
           CHROME="$(command -v google-chrome)"
           "$CHROME" --headless=new --no-sandbox --disable-dev-shm-usage \
             --enable-webgl --ignore-gpu-blocklist --use-angle=swiftshader \
-            --remote-debugging-port=9222 http://127.0.0.1:8765/ \
+            --remote-debugging-port=9222 --remote-allow-origins='*' \
+            http://127.0.0.1:8765/ \
             > "$RUNNER_TEMP/chrome.out" 2> "$RUNNER_TEMP/chrome.log" &
           CHROME_PID=$!
           trap 'kill $CHROME_PID $SERVER_PID 2>/dev/null || true' EXIT
@@ -211,7 +213,7 @@ jobs:
           if not target:
               raise SystemExit('Could not connect to Chrome DevTools')
 
-          ws = create_connection(target['webSocketDebuggerUrl'], timeout=5, origin='http://127.0.0.1:9222')
+          ws = create_connection(target['webSocketDebuggerUrl'], timeout=5)
           seq = 0
           def evaluate(expr):
               global seq
