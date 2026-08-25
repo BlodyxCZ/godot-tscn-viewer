@@ -4,6 +4,7 @@ import {
   previewManifestApiUrl,
   previewPackApiUrl,
   validatePreviewManifest,
+  runtimeVersionForGodot,
   runnerUrl,
 } from '../src/play/preview.js';
 
@@ -23,20 +24,36 @@ test('builds GitHub contents API URL for preview pack', () => {
   );
 });
 
-test('accepts compatible manifest', () => {
-  assert.deepEqual(validatePreviewManifest({
-    schema_version: 1,
-    godot_version: '4.7',
-    source_sha: 'abc',
-    pack_path: 'preview.pck',
-    generated_at: '2026-08-25T00:00:00Z',
-  }), {
-    schema_version: 1,
-    godot_version: '4.7',
-    source_sha: 'abc',
-    pack_path: 'preview.pck',
-    generated_at: '2026-08-25T00:00:00Z',
-  });
+test('accepts every supported Godot 4.x preview line', () => {
+  for (let minor = 0; minor <= 8; minor += 1) {
+    const godotVersion = `4.${minor}`;
+    const manifest = validatePreviewManifest({
+      schema_version: 1,
+      godot_version: godotVersion,
+      source_sha: 'abc',
+      pack_path: 'preview.pck',
+      generated_at: '2026-08-25T00:00:00Z',
+    });
+    assert.equal(manifest.godot_version, godotVersion);
+  }
+});
+
+test('rejects unsupported Godot preview lines', () => {
+  for (const godotVersion of ['3.6', '4.9', '5.0', 'banana']) {
+    assert.throws(
+      () => validatePreviewManifest({ schema_version: 1, godot_version: godotVersion, pack_path: 'preview.pck' }),
+      /Godot preview version/,
+    );
+  }
+});
+
+test('maps legacy Godot 4.0-4.2 packs to the sandbox-safe 4.3 Web runtime', () => {
+  assert.equal(runtimeVersionForGodot('4.0'), '4.3');
+  assert.equal(runtimeVersionForGodot('4.1'), '4.3');
+  assert.equal(runtimeVersionForGodot('4.2'), '4.3');
+  for (const version of ['4.3', '4.4', '4.5', '4.6', '4.7', '4.8']) {
+    assert.equal(runtimeVersionForGodot(version), version);
+  }
 });
 
 test('rejects unsafe pack paths and incompatible schemas', () => {
@@ -44,12 +61,16 @@ test('rejects unsafe pack paths and incompatible schemas', () => {
   assert.throws(() => validatePreviewManifest({ schema_version: 1, godot_version: '4.7', pack_path: '../evil.pck' }), /pack path/);
 });
 
-test('runner URL carries only repository and scene identity', () => {
-  const url = new URL(runnerUrl(target, { godot_version: '4.7', pack_path: 'preview.pck' }, 'https://example.test/viewer/'));
-  assert.equal(url.pathname, '/viewer/runner/');
-  assert.equal(url.searchParams.get('owner'), 'Foo');
-  assert.equal(url.searchParams.get('repo'), 'Game');
-  assert.equal(url.searchParams.get('scene'), 'res://scenes/shop.tscn');
-  assert.equal(url.searchParams.get('godot'), '4.7');
-  assert.equal(url.searchParams.get('pack'), 'preview.pck');
+test('runner URL carries project version and resolved Web runtime separately', () => {
+  const legacyUrl = new URL(runnerUrl(target, { godot_version: '4.2', pack_path: 'preview.pck' }, 'https://example.test/viewer/'));
+  assert.equal(legacyUrl.pathname, '/viewer/runner/');
+  assert.equal(legacyUrl.searchParams.get('owner'), 'Foo');
+  assert.equal(legacyUrl.searchParams.get('repo'), 'Game');
+  assert.equal(legacyUrl.searchParams.get('scene'), 'res://scenes/shop.tscn');
+  assert.equal(legacyUrl.searchParams.get('godot'), '4.2');
+  assert.equal(legacyUrl.searchParams.get('runtime'), '4.3');
+  assert.equal(legacyUrl.searchParams.get('pack'), 'preview.pck');
+
+  const currentUrl = new URL(runnerUrl(target, { godot_version: '4.8', pack_path: 'preview.pck' }, 'https://example.test/viewer/'));
+  assert.equal(currentUrl.searchParams.get('runtime'), '4.8');
 });
