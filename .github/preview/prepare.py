@@ -52,10 +52,10 @@ def main() -> None:
     else:
         text = '; Generated temporarily by Godot TSCN Viewer\nconfig_version=5\n\n[application]\nconfig/name="TSCN Preview"\n\n[display]\nwindow/size/viewport_width=1152\nwindow/size/viewport_height=648\n\n[rendering]\nrenderer/rendering_method="gl_compatibility"\nrenderer/rendering_method.mobile="gl_compatibility"\n'
 
-    text = set_project_setting(text, "application", "run/main_scene", '"res://.tscn-preview/PreviewLauncher.tscn"')
+    text = set_project_setting(text, "application", "run/main_scene", '"res://__tscn_viewer_preview/PreviewLauncher.tscn"')
     project_file.write_text(text, encoding="utf-8")
 
-    preview_dir = root / ".tscn-preview"
+    preview_dir = root / "__tscn_viewer_preview"
     preview_dir.mkdir(exist_ok=True)
     shutil.copy2(tooling / "PreviewLauncher.gd", preview_dir / "PreviewLauncher.gd")
     shutil.copy2(tooling / "PreviewLauncher.tscn", preview_dir / "PreviewLauncher.tscn")
