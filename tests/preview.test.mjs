@@ -5,6 +5,7 @@ import {
   previewPackApiUrl,
   validatePreviewManifest,
   runtimeVersionForGodot,
+  viewerUrl,
   runnerUrl,
 } from '../src/play/preview.js';
 
@@ -59,6 +60,16 @@ test('maps legacy Godot 4.0-4.2 packs to the sandbox-safe 4.3 Web runtime', () =
 test('rejects unsafe pack paths and incompatible schemas', () => {
   assert.throws(() => validatePreviewManifest({ schema_version: 2, godot_version: '4.7', pack_path: 'preview.pck' }), /schema/);
   assert.throws(() => validatePreviewManifest({ schema_version: 1, godot_version: '4.7', pack_path: '../evil.pck' }), /pack path/);
+});
+
+test('viewer URL carries canonical repository, ref, and scene path', () => {
+  const url = new URL(viewerUrl(target, 'https://example.test/viewer/?stale=yes#old'));
+  assert.equal(url.pathname, '/viewer/');
+  assert.equal(url.searchParams.get('repo'), 'Foo/Game');
+  assert.equal(url.searchParams.get('ref'), 'main');
+  assert.equal(url.searchParams.get('path'), 'scenes/shop.tscn');
+  assert.equal(url.searchParams.has('stale'), false);
+  assert.equal(url.hash, '');
 });
 
 test('runner URL carries project version and resolved Web runtime separately', () => {
