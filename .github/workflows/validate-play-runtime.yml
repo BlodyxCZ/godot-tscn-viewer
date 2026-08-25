@@ -1,0 +1,57 @@
+name: Validate Play Runtime
+
+on:
+  push:
+    branches: [feat/playable-previews]
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: "4.7"
+
+jobs:
+  validate-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GODOT_VERSION}-stable"
+          curl -fL "https://github.com/godotengine/godot/releases/download/${TAG}/Godot_v${TAG}_linux.x86_64.zip" -o "$RUNNER_TEMP/godot.zip"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          GODOT_BIN="$RUNNER_TEMP/godot/Godot_v${TAG}_linux.x86_64"
+          chmod +x "$GODOT_BIN"
+          ln -s "$GODOT_BIN" "$RUNNER_TEMP/godot/godot"
+          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
+
+      - name: Install Web export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GODOT_VERSION}-stable"
+          curl -fL "https://github.com/godotengine/godot/releases/download/${TAG}/Godot_v${TAG}_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
+          unzip -q "$RUNNER_TEMP/templates.tpz" -d "$RUNNER_TEMP/export-templates"
+          DEST="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$DEST"
+          cp -a "$RUNNER_TEMP/export-templates/templates/." "$DEST/"
+
+      - name: Build shared browser runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/runtime"
+          mkdir -p "$OUT"
+          godot --headless --path .github/runtime --import
+          godot --headless --path .github/runtime --export-release "Web Runtime" "$OUT/godot.html"
+          test -s "$OUT/godot.js"
+          test -s "$OUT/godot.wasm"
+          ls -lh "$OUT"
+
+      - name: Validate viewer tests and JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test
+          find src runner -name '*.js' -print0 | xargs -0 -n1 node --check
