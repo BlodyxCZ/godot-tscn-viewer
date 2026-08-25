@@ -14,6 +14,9 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+env:
+  GODOT_VERSION: "4.7"
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -32,10 +35,48 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Stage static site
+        shell: bash
+        run: |
+          mkdir _site
+          rsync -a --exclude '.git' --exclude '_site' ./ _site/
+
+      - name: Install Godot and Web export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GODOT_VERSION}-stable"
+          curl -fL "https://github.com/godotengine/godot/releases/download/${TAG}/Godot_v${TAG}_linux.x86_64.zip" -o "$RUNNER_TEMP/godot.zip"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          GODOT_BIN="$RUNNER_TEMP/godot/Godot_v${TAG}_linux.x86_64"
+          chmod +x "$GODOT_BIN"
+          ln -s "$GODOT_BIN" "$RUNNER_TEMP/godot/godot"
+          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
+
+          curl -fL "https://github.com/godotengine/godot/releases/download/${TAG}/Godot_v${TAG}_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
+          unzip -q "$RUNNER_TEMP/templates.tpz" -d "$RUNNER_TEMP/export-templates"
+          DEST="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$DEST"
+          cp -a "$RUNNER_TEMP/export-templates/templates/." "$DEST/"
+
+      - name: Build shared Godot Web runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUNTIME_PROJECT="$GITHUB_WORKSPACE/.github/runtime"
+          RUNTIME_OUT="$GITHUB_WORKSPACE/_site/runtime/${GODOT_VERSION}"
+          mkdir -p "$RUNTIME_OUT"
+          godot --headless --path "$RUNTIME_PROJECT" --import
+          godot --headless --path "$RUNTIME_PROJECT" --export-release "Web Runtime" "$RUNTIME_OUT/godot.html"
+          test -s "$RUNTIME_OUT/godot.js"
+          test -s "$RUNTIME_OUT/godot.wasm"
+          rm -f "$RUNTIME_OUT/godot.pck" "$RUNTIME_OUT/godot.html"
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

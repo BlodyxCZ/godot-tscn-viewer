@@ -6,6 +6,8 @@ import { renderInspector } from './ui/inspector.js';
 import { renderResources } from './ui/resources.js';
 import { renderConnections } from './ui/connections.js';
 import { renderSource } from './ui/source.js';
+import { discoverPreview } from './play/preview.js';
+import { renderPlay } from './ui/play.js';
 
 const $ = (selector) => document.querySelector(selector);
 const form = $('#open-form');
@@ -19,6 +21,7 @@ const inspector = $('#inspector');
 const resourcesView = $('#resources-view');
 const connectionsView = $('#connections-view');
 const sourceView = $('#source-view');
+const playView = $('#play-view');
 
 let state = null;
 
@@ -62,6 +65,14 @@ async function loadTarget(target, { replaceHistory = true } = {}) {
   renderResources(resourcesView, sceneDocument, target, showSubResource);
   renderConnections(connectionsView, sceneDocument);
   renderSource(sourceView, source);
+
+  let previewManifest = null;
+  try {
+    previewManifest = await discoverPreview(target);
+  } catch (error) {
+    console.warn('Playable preview discovery failed:', error);
+  }
+  renderPlay(playView, target, previewManifest);
 
   const filename = target.path.split('/').pop();
   meta.textContent = `${target.owner}/${target.repo} · ${target.ref} · ${target.path}`;

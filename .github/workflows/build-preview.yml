@@ -1,0 +1,130 @@
+name: Build TSCN Playable Preview
+
+on:
+  workflow_call:
+    inputs:
+      godot-version:
+        description: Godot stable version used for the generated preview pack.
+        required: false
+        type: string
+        default: "4.7"
+      tooling-ref:
+        description: Internal TSCN Viewer tooling ref. Keep the default for normal use.
+        required: false
+        type: string
+        default: "main"
+
+permissions:
+  contents: write
+
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout caller repository
+        uses: actions/checkout@v4
+
+      - name: Checkout TSCN Viewer tooling
+        uses: actions/checkout@v4
+        with:
+          repository: BlodyxCZ/godot-tscn-viewer
+          ref: ${{ inputs.tooling-ref }}
+          path: .tscn-viewer-tooling
+
+      - name: Reject unsupported project types
+        shell: bash
+        run: |
+          set -euo pipefail
+          if find . -path './.tscn-viewer-tooling' -prune -o \( -name '*.csproj' -o -name '*.sln' \) -print -quit | grep -q .; then
+            echo 'C#/.NET projects cannot be exported to Godot 4 Web.' >&2
+            exit 1
+          fi
+          if find . -path './.tscn-viewer-tooling' -prune -o -name '*.gdextension' -print -quit | grep -q .; then
+            echo 'GDExtension projects are not supported by TSCN Viewer playable previews v1.' >&2
+            exit 1
+          fi
+
+      - name: Install Godot and Web export templates
+        shell: bash
+        env:
+          GODOT_VERSION: ${{ inputs.godot-version }}
+        run: |
+          set -euo pipefail
+          TAG="${GODOT_VERSION}-stable"
+          curl -fL "https://github.com/godotengine/godot/releases/download/${TAG}/Godot_v${TAG}_linux.x86_64.zip" -o "$RUNNER_TEMP/godot.zip"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          GODOT_BIN="$RUNNER_TEMP/godot/Godot_v${TAG}_linux.x86_64"
+          chmod +x "$GODOT_BIN"
+          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
+          ln -s "$GODOT_BIN" "$RUNNER_TEMP/godot/godot"
+
+          curl -fL "https://github.com/godotengine/godot/releases/download/${TAG}/Godot_v${TAG}_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
+          unzip -q "$RUNNER_TEMP/templates.tpz" -d "$RUNNER_TEMP/export-templates"
+          DEST="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$DEST"
+          cp -a "$RUNNER_TEMP/export-templates/templates/." "$DEST/"
+
+      - name: Prepare temporary preview project
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .tscn-viewer-tooling/.github/preview/prepare.py \
+            --project . \
+            --tooling .tscn-viewer-tooling/.github/preview
+          rm -rf .tscn-viewer-tooling
+
+      - name: Import and validate project
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --import
+
+      - name: Export preview pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --export-pack "TSCN Preview" "$RUNNER_TEMP/preview.pck"
+          test -s "$RUNNER_TEMP/preview.pck"
+          SIZE=$(stat -c%s "$RUNNER_TEMP/preview.pck")
+          if [ "$SIZE" -gt 95000000 ]; then
+            echo "preview.pck is ${SIZE} bytes; generated-branch previews are limited to 95 MB in v1." >&2
+            exit 1
+          fi
+
+      - name: Create preview manifest
+        shell: bash
+        env:
+          GODOT_VERSION: ${{ inputs.godot-version }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          data = {
+              "schema_version": 1,
+              "godot_version": os.environ["GODOT_VERSION"],
+              "source_sha": os.environ["GITHUB_SHA"],
+              "pack_path": "preview.pck",
+              "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+          }
+          with open(os.path.join(os.environ["RUNNER_TEMP"], "preview.json"), "w", encoding="utf-8") as f:
+              json.dump(data, f, indent=2)
+              f.write("\n")
+          PY
+
+      - name: Publish generated tscn-preview branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PUBLISH="$RUNNER_TEMP/tscn-preview-publish"
+          mkdir -p "$PUBLISH"
+          cp "$RUNNER_TEMP/preview.pck" "$RUNNER_TEMP/preview.json" "$PUBLISH/"
+          cd "$PUBLISH"
+          git init -b tscn-preview
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add preview.pck preview.json
+          git commit -m "build: update playable TSCN preview"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin HEAD:tscn-preview
