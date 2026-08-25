@@ -60,6 +60,16 @@ export async function discoverPreview(target, fetchImpl = fetch) {
   return validatePreviewManifest(await response.json());
 }
 
+export function viewerUrl(target, baseUrl = document.baseURI) {
+  const url = new URL('./', baseUrl);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('repo', `${target.owner}/${target.repo}`);
+  url.searchParams.set('ref', target.ref);
+  url.searchParams.set('path', target.path);
+  return url.toString();
+}
+
 export function runnerUrl(target, manifest, baseUrl = document.baseURI) {
   const url = new URL('./runner/', baseUrl);
   url.searchParams.set('owner', target.owner);
