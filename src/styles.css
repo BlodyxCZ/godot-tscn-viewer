@@ -99,3 +99,11 @@ footer { color: var(--muted); text-align: center; font-size: 12px; padding: 20px
   .connection-row.header { display: none; }
   #file-meta { max-width: 60vw; }
 }
+
+.play-panel { padding: 0; overflow: hidden; min-height: 560px; }
+.play-shell { min-height: 560px; display: flex; flex-direction: column; }
+.play-toolbar { min-height: 48px; display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 0 14px; border-bottom: 1px solid var(--border); color: var(--muted); }
+.play-frame { width: 100%; flex: 1; min-height: 512px; border: 0; background: #101217; }
+.play-empty { padding: 32px; max-width: 760px; }
+.play-empty pre { overflow: auto; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+@media (max-width: 720px) { .play-panel, .play-shell { min-height: 440px; } .play-frame { min-height: 392px; } }

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Godot TSCN Preview Runner</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; background: #101217; color: #e7eaf0; overflow: hidden; font: 14px system-ui, sans-serif; }
+    #canvas { display: block; width: 100%; height: 100%; outline: 0; }
+    #overlay { position: fixed; inset: 0; display: grid; place-items: center; background: #101217; z-index: 2; }
+    #card { width: min(420px, calc(100% - 48px)); text-align: center; }
+    #status { margin-bottom: 12px; }
+    progress { width: 100%; }
+    #error { color: #ff9a9a; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" tabindex="0"></canvas>
+  <div id="overlay"><div id="card"><div id="status">Preparing preview…</div><progress id="progress" max="1" value="0"></progress><div id="error"></div></div></div>
+  <script src="./runner.js"></script>
+</body>
+</html>

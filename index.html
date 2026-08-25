@@ -36,6 +36,7 @@
     <section id="viewer" class="viewer hidden" aria-label="Scene viewer">
       <nav class="tabs" aria-label="Viewer tabs">
         <button class="tab active" data-tab="scene" type="button">Scene</button>
+        <button class="tab" data-tab="play" type="button">▶ Play</button>
         <button class="tab" data-tab="resources" type="button">Resources</button>
         <button class="tab" data-tab="connections" type="button">Connections</button>
         <button class="tab" data-tab="source" type="button">Source</button>
@@ -54,6 +55,10 @@
         </div>
       </section>
 
+      <section class="tab-panel" data-panel="play">
+        <div id="play-view" class="panel content-panel play-panel"></div>
+      </section>
+
       <section class="tab-panel" data-panel="resources">
         <div id="resources-view" class="panel content-panel"></div>
       </section>
@@ -67,7 +72,7 @@
   </main>
 
   <footer>
-    Browser-only. Scene scripts are never executed.
+    Structural inspection is browser-only. Playable previews execute opt-in repository builds inside a sandboxed Godot Web runner.
   </footer>
 
   <script type="module" src="./src/app.js"></script>
