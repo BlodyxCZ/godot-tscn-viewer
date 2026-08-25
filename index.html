@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Preview public Godot .tscn scene files from GitHub.">
+  <title>Godot TSCN Viewer</title>
+  <link rel="stylesheet" href="./src/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">◈</div>
+      <div>
+        <strong>Godot TSCN Viewer</strong>
+        <div id="file-meta" class="muted">Structural preview for public Godot scenes</div>
+      </div>
+    </div>
+    <a id="github-link" class="button secondary hidden" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+  </header>
+
+  <main>
+    <section class="open-card" aria-labelledby="open-title">
+      <div>
+        <h1 id="open-title">Open a Godot scene</h1>
+        <p>Paste a public GitHub <code>.tscn</code> file URL. The scene is fetched directly in your browser.</p>
+      </div>
+      <form id="open-form" class="open-form">
+        <label class="sr-only" for="scene-url">GitHub .tscn URL</label>
+        <input id="scene-url" name="url" type="url" required placeholder="https://github.com/owner/repo/blob/main/path/scene.tscn" autocomplete="off">
+        <button type="submit">Open scene</button>
+      </form>
+      <div id="status" class="status muted" role="status" aria-live="polite"></div>
+    </section>
+
+    <section id="viewer" class="viewer hidden" aria-label="Scene viewer">
+      <nav class="tabs" aria-label="Viewer tabs">
+        <button class="tab active" data-tab="scene" type="button">Scene</button>
+        <button class="tab" data-tab="resources" type="button">Resources</button>
+        <button class="tab" data-tab="connections" type="button">Connections</button>
+        <button class="tab" data-tab="source" type="button">Source</button>
+      </nav>
+
+      <section class="tab-panel active" data-panel="scene">
+        <div class="scene-layout">
+          <aside class="panel tree-panel">
+            <div class="panel-heading">Scene</div>
+            <div id="scene-tree" class="tree"></div>
+          </aside>
+          <section class="panel inspector-panel">
+            <div class="panel-heading">Inspector</div>
+            <div id="inspector" class="inspector empty-state">Select a node.</div>
+          </section>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-panel="resources">
+        <div id="resources-view" class="panel content-panel"></div>
+      </section>
+      <section class="tab-panel" data-panel="connections">
+        <div id="connections-view" class="panel content-panel"></div>
+      </section>
+      <section class="tab-panel" data-panel="source">
+        <div class="panel source-panel"><pre id="source-view"></pre></div>
+      </section>
+    </section>
+  </main>
+
+  <footer>
+    Browser-only. Scene scripts are never executed.
+  </footer>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
