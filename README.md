@@ -11,7 +11,7 @@
 
 <p align="center">
   <img alt="Version 1.0.0" src="https://img.shields.io/badge/version-1.0.0-blue">
-  <img alt="Godot 4.0 through 4.8" src="https://img.shields.io/badge/Godot-4.0--4.8-478CBF?logo=godot-engine&logoColor=white">
+  <img alt="Godot 4.0 through 4.8" src="https://img.shields.io/badge/Godot-4.x-478CBF?logo=godot-engine&logoColor=white">
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="No backend" src="https://img.shields.io/badge/backend-none-lightgrey">
 </p>
