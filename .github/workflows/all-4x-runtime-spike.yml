@@ -1,0 +1,249 @@
+name: All Godot 4.x Runtime Spike
+
+on:
+  push:
+    branches: [spike/all-4x-runtimes]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    name: Godot ${{ matrix.line }} (${{ matrix.tag }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - line: "4.0"
+            tag: "4.0.4-stable"
+            repo: "godotengine/godot-builds"
+          - line: "4.1"
+            tag: "4.1.4-stable"
+            repo: "godotengine/godot-builds"
+          - line: "4.2"
+            tag: "4.2.2-stable"
+            repo: "godotengine/godot-builds"
+          - line: "4.3"
+            tag: "4.3-stable"
+            repo: "godotengine/godot-builds"
+          - line: "4.4"
+            tag: "4.4.1-stable"
+            repo: "godotengine/godot-builds"
+          - line: "4.8"
+            tag: "4.8-dev3"
+            repo: "godotengine/godot-builds"
+
+    steps:
+      - name: Checkout viewer tooling
+        uses: actions/checkout@v4
+
+      - name: Create version-neutral test project
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p target
+          cat > target/project.godot <<'EOF'
+          config_version=5
+
+          [application]
+          config/name="TSCN Runtime Compatibility"
+
+          [display]
+          window/size/viewport_width=640
+          window/size/viewport_height=360
+
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          EOF
+          cat > target/demo.tscn <<'EOF'
+          [gd_scene format=3]
+
+          [node name="CompatibilityDemo" type="Node"]
+          EOF
+
+      - name: Install exact Godot editor
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ matrix.tag }}
+          RELEASE_REPO: ${{ matrix.repo }}
+        run: |
+          set -euo pipefail
+          ASSET="Godot_v${RELEASE_TAG}_linux.x86_64.zip"
+          URL="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/${ASSET}"
+          echo "$URL"
+          curl -fL "$URL" -o "$RUNNER_TEMP/godot.zip"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          GODOT_BIN="$RUNNER_TEMP/godot/Godot_v${RELEASE_TAG}_linux.x86_64"
+          chmod +x "$GODOT_BIN"
+          ln -s "$GODOT_BIN" "$RUNNER_TEMP/godot/godot"
+          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
+          "$GODOT_BIN" --version
+
+      - name: Prepare, import, and export preview pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/preview/prepare.py --project target --tooling .github/preview
+          godot --headless --path target --import
+          godot --headless --path target --export-pack "TSCN Preview" "$RUNNER_TEMP/preview.pck"
+          test -s "$RUNNER_TEMP/preview.pck"
+          echo "PACK_SIZE=$(stat -c%s "$RUNNER_TEMP/preview.pck")"
+
+      - name: Extract matching single-thread Web runtime
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ matrix.tag }}
+          RELEASE_REPO: ${{ matrix.repo }}
+        run: |
+          set -euo pipefail
+          ASSET="Godot_v${RELEASE_TAG}_export_templates.tpz"
+          URL="https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/${ASSET}"
+          echo "$URL"
+          curl -fL "$URL" -o "$RUNNER_TEMP/templates.tpz"
+          unzip -l "$RUNNER_TEMP/templates.tpz" | grep -E 'web.*release\.zip' || true
+
+          ENTRY="$(unzip -Z1 "$RUNNER_TEMP/templates.tpz" | grep -E '^templates/web_nothreads_release\.zip$' | head -n1 || true)"
+          if [ -z "$ENTRY" ]; then
+            ENTRY="$(unzip -Z1 "$RUNNER_TEMP/templates.tpz" | grep -E '^templates/web_release\.zip$' | head -n1 || true)"
+          fi
+          if [ -z "$ENTRY" ]; then
+            echo 'No supported single-thread Web template found.' >&2
+            exit 1
+          fi
+          echo "Using template entry: $ENTRY"
+          unzip -q "$RUNNER_TEMP/templates.tpz" "$ENTRY" -d "$RUNNER_TEMP/export-templates"
+          mkdir -p "$RUNNER_TEMP/site"
+          unzip -q "$RUNNER_TEMP/export-templates/$ENTRY" -d "$RUNNER_TEMP/site"
+          cp "$RUNNER_TEMP/preview.pck" "$RUNNER_TEMP/site/preview.pck"
+
+          JS="$(find "$RUNNER_TEMP/site" -maxdepth 1 -type f -name '*.js' ! -name '*worklet*' ! -name '*service.worker*' | head -n1)"
+          WASM="$(find "$RUNNER_TEMP/site" -maxdepth 1 -type f -name '*.wasm' | head -n1)"
+          test -s "$JS"
+          test -s "$WASM"
+          cp "$JS" "$RUNNER_TEMP/site/godot.js"
+          cp "$WASM" "$RUNNER_TEMP/site/godot.wasm"
+          ls -lh "$RUNNER_TEMP/site/godot.js" "$RUNNER_TEMP/site/godot.wasm" "$RUNNER_TEMP/site/preview.pck"
+
+      - name: Create browser harness
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/site/index.html" <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <canvas id="canvas" width="640" height="360"></canvas>
+          <div id="result">BOOTING</div>
+          <script src="./godot.js"></script>
+          <script>
+          (async () => {
+            const result = document.getElementById('result');
+            const canvas = document.getElementById('canvas');
+            const runtimeBase = new URL('./godot', location.href).toString();
+            const engine = new Engine({
+              canvas,
+              executable: runtimeBase,
+              canvasResizePolicy: 0,
+              focusCanvas: false,
+              onPrint(text) {
+                console.log(`[Godot] ${text}`);
+                if (String(text).startsWith('TSCN_PREVIEW_READY:')) {
+                  result.textContent = String(text);
+                  document.documentElement.dataset.runtimeTest = 'ready';
+                }
+              },
+              onPrintError(text) {
+                console.error(`[Godot] ${text}`);
+                if (String(text).includes('TSCN_PREVIEW_ERROR:')) {
+                  result.textContent = String(text);
+                  document.documentElement.dataset.runtimeTest = 'error';
+                }
+              },
+            });
+            await engine.init(runtimeBase);
+            const pack = await fetch('./preview.pck').then((response) => {
+              if (!response.ok) throw new Error(`preview.pck HTTP ${response.status}`);
+              return response.arrayBuffer();
+            });
+            await engine.preloadFile(pack, '/preview.pck');
+            await engine.start({ args: ['--main-pack', '/preview.pck', '--', 'res://demo.tscn'] });
+          })().catch((error) => {
+            result.textContent = `ERROR: ${error.stack || error}`;
+            document.documentElement.dataset.runtimeTest = 'error';
+            console.error(error);
+          });
+          </script>
+          HTML
+
+      - name: Run real browser startup test
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/site"
+          python3 -m http.server 8765 > "$RUNNER_TEMP/http.log" 2>&1 &
+          SERVER_PID=$!
+          CHROME="$(command -v google-chrome)"
+          "$CHROME" --headless=new --no-sandbox --disable-dev-shm-usage \
+            --enable-webgl --ignore-gpu-blocklist --use-angle=swiftshader \
+            --remote-debugging-port=9222 http://127.0.0.1:8765/ \
+            > "$RUNNER_TEMP/chrome.out" 2> "$RUNNER_TEMP/chrome.log" &
+          CHROME_PID=$!
+          trap 'kill $CHROME_PID $SERVER_PID 2>/dev/null || true' EXIT
+
+          python3 - <<'PY'
+          import json, time, urllib.request
+          from websocket import create_connection
+
+          deadline = time.time() + 50
+          target = None
+          while time.time() < deadline:
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:9222/json', timeout=2) as r:
+                      pages = json.load(r)
+                  target = next((p for p in pages if p.get('type') == 'page'), None)
+                  if target:
+                      break
+              except Exception:
+                  pass
+              time.sleep(0.5)
+          if not target:
+              raise SystemExit('Could not connect to Chrome DevTools')
+
+          ws = create_connection(target['webSocketDebuggerUrl'], timeout=5, origin='http://127.0.0.1:9222')
+          seq = 0
+          def evaluate(expr):
+              global seq
+              seq += 1
+              ws.send(json.dumps({'id': seq, 'method': 'Runtime.evaluate', 'params': {'expression': expr, 'returnByValue': True}}))
+              while True:
+                  msg = json.loads(ws.recv())
+                  if msg.get('id') == seq:
+                      return msg.get('result', {}).get('result', {}).get('value')
+
+          state = None
+          text = None
+          while time.time() < deadline:
+              state = evaluate("document.documentElement.dataset.runtimeTest || ''")
+              text = evaluate("document.getElementById('result')?.textContent || ''")
+              print('state=', state, 'result=', text)
+              if state in ('ready', 'error'):
+                  break
+              time.sleep(1)
+          ws.close()
+
+          if state != 'ready':
+              raise SystemExit(f'Runtime did not become ready: state={state!r} result={text!r}')
+          if text != 'TSCN_PREVIEW_READY:res://demo.tscn':
+              raise SystemExit(f'Unexpected ready marker: {text!r}')
+          PY
+
+      - name: Print diagnostics
+        if: always()
+        shell: bash
+        run: |
+          echo '--- Chrome stderr ---'
+          tail -n 200 "$RUNNER_TEMP/chrome.log" 2>/dev/null || true
+          echo '--- HTTP log ---'
+          cat "$RUNNER_TEMP/http.log" 2>/dev/null || true
