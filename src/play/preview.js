@@ -1,5 +1,6 @@
 const PREVIEW_BRANCH = 'tscn-preview';
 const API_ROOT = 'https://api.github.com';
+const SUPPORTED_GODOT_VERSION = /^4\.[0-8]$/;
 
 function assertRepoTarget(target) {
   if (!target || !target.owner || !target.repo) throw new Error('Repository target is required.');
@@ -22,12 +23,18 @@ export function previewPackApiUrl(target, packPath = 'preview.pck') {
   return `${API_ROOT}/repos/${encodeURIComponent(target.owner)}/${encodeURIComponent(target.repo)}/contents/${encodePath(packPath)}?ref=${PREVIEW_BRANCH}`;
 }
 
+export function runtimeVersionForGodot(godotVersion) {
+  if (typeof godotVersion !== 'string' || !SUPPORTED_GODOT_VERSION.test(godotVersion)) {
+    throw new Error(`Unsupported Godot preview version: ${godotVersion ?? 'missing'}.`);
+  }
+  const minor = Number(godotVersion.split('.')[1]);
+  return minor <= 2 ? '4.3' : godotVersion;
+}
+
 export function validatePreviewManifest(input) {
   if (!input || typeof input !== 'object') throw new Error('Invalid preview manifest.');
   if (input.schema_version !== 1) throw new Error(`Unsupported preview manifest schema: ${input.schema_version ?? 'missing'}.`);
-  if (typeof input.godot_version !== 'string' || !/^4\.7(?:\.\d+)?$/.test(input.godot_version)) {
-    throw new Error(`Unsupported Godot preview version: ${input.godot_version ?? 'missing'}.`);
-  }
+  runtimeVersionForGodot(input.godot_version);
   const packPath = input.pack_path;
   if (typeof packPath !== 'string' || !/^[A-Za-z0-9._/-]+$/.test(packPath) || packPath.startsWith('/') || packPath.includes('..') || !packPath.endsWith('.pck')) {
     throw new Error('Invalid preview pack path.');
@@ -59,6 +66,7 @@ export function runnerUrl(target, manifest, baseUrl = document.baseURI) {
   url.searchParams.set('repo', target.repo);
   url.searchParams.set('scene', `res://${target.path}`);
   url.searchParams.set('godot', manifest.godot_version);
+  url.searchParams.set('runtime', runtimeVersionForGodot(manifest.godot_version));
   url.searchParams.set('pack', manifest.pack_path);
   return url.toString();
 }
