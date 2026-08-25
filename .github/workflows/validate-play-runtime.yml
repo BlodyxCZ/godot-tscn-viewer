@@ -33,9 +33,13 @@ jobs:
           TAG="${GODOT_VERSION}-stable"
           curl -fL "https://github.com/godotengine/godot/releases/download/${TAG}/Godot_v${TAG}_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
           unzip -q "$RUNNER_TEMP/templates.tpz" -d "$RUNNER_TEMP/export-templates"
-          DEST="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          TEMPLATE_ROOT="$RUNNER_TEMP/export-templates/templates"
+          TEMPLATE_VERSION=$(tr -d '\r\n' < "$TEMPLATE_ROOT/version.txt")
+          DEST="$HOME/.local/share/godot/export_templates/$TEMPLATE_VERSION"
+          echo "Installing templates for exact Godot config: $TEMPLATE_VERSION"
           mkdir -p "$DEST"
-          cp -a "$RUNNER_TEMP/export-templates/templates/." "$DEST/"
+          cp -a "$TEMPLATE_ROOT/." "$DEST/"
+          ls -lh "$DEST/web_nothreads_release.zip" "$DEST/version.txt"
 
       - name: Build shared browser runtime
         shell: bash
@@ -43,8 +47,8 @@ jobs:
           set -euo pipefail
           OUT="$RUNNER_TEMP/runtime"
           mkdir -p "$OUT"
-          godot --headless --path .github/runtime --import
-          godot --headless --path .github/runtime --export-release "Web Runtime" "$OUT/godot.html"
+          godot --headless --verbose --path .github/runtime --import
+          godot --headless --verbose --path .github/runtime --export-release "Web Runtime" "$OUT/godot.html"
           test -s "$OUT/godot.js"
           test -s "$OUT/godot.wasm"
           ls -lh "$OUT"
