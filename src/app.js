@@ -51,16 +51,16 @@ async function loadTarget(target, { replaceHistory = true } = {}) {
   const response = await fetch(rawContentUrl(target));
   if (!response.ok) throw new Error(response.status === 404 ? 'Scene not found (GitHub returned 404).' : `GitHub returned HTTP ${response.status}.`);
   const source = await response.text();
-  const document = parseTscn(source);
-  const tree = buildSceneTree(document.nodes);
-  const externalResources = resourceMap(document.externalResources);
-  const subResources = resourceMap(document.subResources);
+  const sceneDocument = parseTscn(source);
+  const tree = buildSceneTree(sceneDocument.nodes);
+  const externalResources = resourceMap(sceneDocument.externalResources);
+  const subResources = resourceMap(sceneDocument.subResources);
   const context = { target, externalResources, subResources, onSubResource: showSubResource };
-  state = { target, source, document, tree, externalResources, subResources, context };
+  state = { target, source, document: sceneDocument, tree, externalResources, subResources, context };
 
   renderSceneTree(treeContainer, tree, (section) => renderInspector(inspector, section, context));
-  renderResources(resourcesView, document, target, showSubResource);
-  renderConnections(connectionsView, document);
+  renderResources(resourcesView, sceneDocument, target, showSubResource);
+  renderConnections(connectionsView, sceneDocument);
   renderSource(sourceView, source);
 
   const filename = target.path.split('/').pop();
@@ -70,7 +70,7 @@ async function loadTarget(target, { replaceHistory = true } = {}) {
   githubLink.classList.remove('hidden');
   input.value = githubBlobUrl(target);
   viewer.classList.remove('hidden');
-  setStatus(`Loaded ${document.nodes.length} nodes, ${document.externalResources.length + document.subResources.length} resources, ${document.connections.length} connections.`, 'success');
+  setStatus(`Loaded ${sceneDocument.nodes.length} nodes, ${sceneDocument.externalResources.length + sceneDocument.subResources.length} resources, ${sceneDocument.connections.length} connections.`, 'success');
 
   if (replaceHistory) {
     const query = new URLSearchParams({ repo: `${target.owner}/${target.repo}`, ref: target.ref, path: target.path });
