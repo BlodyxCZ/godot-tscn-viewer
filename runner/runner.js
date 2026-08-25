@@ -52,6 +52,7 @@
   async function main() {
     validate();
     const runtimeRoot = new URL(`../runtime/${godot}/`, location.href);
+    const runtimeBase = new URL('godot', runtimeRoot).toString().replace(/\/$/, '');
     status.textContent = `Loading Godot ${godot}…`;
     await loadScript(new URL('godot.js', runtimeRoot).toString());
     if (typeof Engine !== 'function') throw new Error('Godot runtime did not expose Engine.');
@@ -61,7 +62,7 @@
 
     const engine = new Engine({
       canvas,
-      executable: new URL('godot', runtimeRoot).toString().replace(/\/$/, ''),
+      executable: runtimeBase,
       canvasResizePolicy: 2,
       focusCanvas: true,
       onProgress(current, total) {
@@ -73,7 +74,7 @@
     });
 
     status.textContent = 'Starting scene…';
-    await engine.init();
+    await engine.init(runtimeBase);
     await engine.preloadFile(packBuffer, '/preview.pck');
     await engine.start({ args: ['--main-pack', '/preview.pck', '--', scene] });
     overlay.hidden = true;
