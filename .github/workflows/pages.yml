@@ -42,38 +42,41 @@ jobs:
           mkdir _site
           rsync -a --exclude '.git' --exclude '_site' ./ _site/
 
-      - name: Install Godot and Web export templates
+      - name: Restore shared Godot Web runtime cache
+        id: runtime-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/godot-tscn-viewer/runtime/${{ env.GODOT_VERSION }}
+          key: godot-tscn-viewer-web-runtime-${{ env.GODOT_VERSION }}-nothreads-v1
+
+      - name: Build shared Godot Web runtime cache
+        if: steps.runtime-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
           TAG="${GODOT_VERSION}-stable"
-          curl -fL "https://github.com/godotengine/godot/releases/download/${TAG}/Godot_v${TAG}_linux.x86_64.zip" -o "$RUNNER_TEMP/godot.zip"
-          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
-          GODOT_BIN="$RUNNER_TEMP/godot/Godot_v${TAG}_linux.x86_64"
-          chmod +x "$GODOT_BIN"
-          ln -s "$GODOT_BIN" "$RUNNER_TEMP/godot/godot"
-          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
-
           curl -fL "https://github.com/godotengine/godot/releases/download/${TAG}/Godot_v${TAG}_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
           unzip -q "$RUNNER_TEMP/templates.tpz" -d "$RUNNER_TEMP/export-templates"
-          TEMPLATE_ROOT="$RUNNER_TEMP/export-templates/templates"
-          TEMPLATE_VERSION=$(tr -d '\r\n' < "$TEMPLATE_ROOT/version.txt")
-          DEST="$HOME/.local/share/godot/export_templates/$TEMPLATE_VERSION"
-          mkdir -p "$DEST"
-          cp -a "$TEMPLATE_ROOT/." "$DEST/"
+          TEMPLATE="$RUNNER_TEMP/export-templates/templates/web_nothreads_release.zip"
+          test -s "$TEMPLATE"
 
-      - name: Build shared Godot Web runtime
+          CACHE="$HOME/.cache/godot-tscn-viewer/runtime/${GODOT_VERSION}"
+          mkdir -p "$CACHE"
+          unzip -q "$TEMPLATE" -d "$CACHE"
+          test -s "$CACHE/godot.js"
+          test -s "$CACHE/godot.wasm"
+
+      - name: Stage shared Godot Web runtime
         shell: bash
         run: |
           set -euo pipefail
-          RUNTIME_PROJECT="$GITHUB_WORKSPACE/.github/runtime"
-          RUNTIME_OUT="$GITHUB_WORKSPACE/_site/runtime/${GODOT_VERSION}"
-          mkdir -p "$RUNTIME_OUT"
-          godot --headless --path "$RUNTIME_PROJECT" --import
-          godot --headless --path "$RUNTIME_PROJECT" --export-release "Web Runtime" "$RUNTIME_OUT/godot.html"
-          test -s "$RUNTIME_OUT/godot.js"
-          test -s "$RUNTIME_OUT/godot.wasm"
-          rm -f "$RUNTIME_OUT/godot.pck" "$RUNTIME_OUT/godot.html"
+          SOURCE="$HOME/.cache/godot-tscn-viewer/runtime/${GODOT_VERSION}"
+          DEST="$GITHUB_WORKSPACE/_site/runtime/${GODOT_VERSION}"
+          test -s "$SOURCE/godot.js"
+          test -s "$SOURCE/godot.wasm"
+          mkdir -p "$DEST"
+          cp -a "$SOURCE/." "$DEST/"
+          rm -f "$DEST/godot.html" "$DEST/godot.offline.html" "$DEST/godot.service.worker.js"
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
