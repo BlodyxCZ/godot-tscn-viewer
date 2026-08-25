@@ -56,9 +56,11 @@ jobs:
 
           curl -fL "https://github.com/godotengine/godot/releases/download/${TAG}/Godot_v${TAG}_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
           unzip -q "$RUNNER_TEMP/templates.tpz" -d "$RUNNER_TEMP/export-templates"
-          DEST="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          TEMPLATE_ROOT="$RUNNER_TEMP/export-templates/templates"
+          TEMPLATE_VERSION=$(tr -d '\r\n' < "$TEMPLATE_ROOT/version.txt")
+          DEST="$HOME/.local/share/godot/export_templates/$TEMPLATE_VERSION"
           mkdir -p "$DEST"
-          cp -a "$RUNNER_TEMP/export-templates/templates/." "$DEST/"
+          cp -a "$TEMPLATE_ROOT/." "$DEST/"
 
       - name: Build shared Godot Web runtime
         shell: bash
