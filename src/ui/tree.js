@@ -11,17 +11,17 @@ export function renderSceneTree(container, tree, onSelect) {
     const decl = treeNode.declaration;
     const row = el('button', {
       type: 'button',
-      className: 'tree-row',
+      className: `tree-row${depth === 0 ? ' root' : ''}`,
       'aria-label': `Select ${decl.attributes.name}`,
     });
     row.style.setProperty('--depth', depth);
     row.append(
-      el('span', { className: 'tree-chevron', text: treeNode.children.length ? '▾' : '·' }),
-      el('span', { className: 'node-icon', text: '◇' }),
+      el('span', { className: 'tree-guide', 'aria-hidden': 'true' }),
+      el('span', { className: 'tree-chevron', text: treeNode.children.length ? '⌄' : '' }),
       el('span', { className: 'node-name', text: decl.attributes.name ?? '(unnamed)' }),
     );
     if (decl.attributes.type) row.append(el('span', { className: 'node-type', text: decl.attributes.type }));
-    if (decl.attributes.instance) row.append(el('span', { className: 'badge', text: 'instance' }));
+    if (decl.attributes.instance) row.append(el('span', { className: 'node-instance', text: 'instance' }));
     row.addEventListener('click', () => {
       container.querySelectorAll('.tree-row.selected').forEach((item) => item.classList.remove('selected'));
       row.classList.add('selected');
