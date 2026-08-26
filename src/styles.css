@@ -135,10 +135,23 @@ button:hover, .button:hover { filter: brightness(1.08); }
 .content-panel { padding: 16px; min-height: 420px; }
 .content-heading h2 { margin: 0; font-size: 18px; }
 .content-heading p { margin: 4px 0 16px; font-size: 13px; }
-.resource-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
-.resource-card { border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 12px; display: grid; gap: 8px; }
-.resource-card-heading { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
-.resource-path { font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }
+.resource-section { margin-top: 18px; }
+.resource-section:first-of-type { margin-top: 8px; }
+.resource-section-heading { display: flex; align-items: baseline; gap: 8px; padding: 0 2px 7px; border-bottom: 1px solid var(--border); }
+.resource-section-heading h3 { margin: 0; font-size: 12px; font-weight: 600; color: var(--text); }
+.resource-count { color: var(--muted); font-size: 11px; }
+.resource-list { display: block; }
+.resource-row { display: grid; grid-template-columns: minmax(180px, .8fr) minmax(260px, 1.2fr) auto; gap: 18px; align-items: center; min-height: 56px; padding: 8px 4px; border-bottom: 1px solid rgba(53, 65, 79, .5); }
+.resource-row:hover { background: rgba(255, 255, 255, .02); }
+.resource-main { min-width: 0; }
+.resource-name { color: var(--text); font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resource-meta { display: flex; gap: 10px; margin-top: 3px; min-width: 0; }
+.resource-id { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resource-type { color: var(--muted); font-size: 10px; white-space: nowrap; }
+.resource-path { min-width: 0; color: var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; overflow-wrap: anywhere; text-decoration: none; }
+a.resource-path:hover { text-decoration: underline; }
+.resource-trailing { display: flex; gap: 10px; align-items: center; justify-content: flex-end; }
+.resource-property-count { color: var(--muted); font-size: 10px; white-space: nowrap; }
 .connection-table { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .connection-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .connection-row > div { padding: 8px 10px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; font-size: 12px; }
@@ -154,6 +167,8 @@ footer { color: var(--muted); text-align: center; font-size: 12px; padding: 20px
   .open-form { flex-direction: column; }
   .scene-layout { grid-template-columns: 1fr; min-height: 0; }
   .tree-panel { max-height: 420px; overflow: auto; }
+  .resource-row { grid-template-columns: 1fr; gap: 5px; padding: 10px 4px; }
+  .resource-trailing { justify-content: flex-start; }
   .connection-row { grid-template-columns: 1fr; border-bottom: 1px solid var(--border); }
   .connection-row.header { display: none; }
   #file-meta { max-width: 60vw; }
