@@ -29,8 +29,8 @@ test('embedded resources use their Godot type as their primary label', () => {
 });
 
 test('resources UI separates external and embedded resources and keeps raw ids secondary', () => {
-  assert.match(source, /text: 'External'/);
-  assert.match(source, /text: 'Embedded'/);
+  assert.match(source, /resourceSection\('External', document\.externalResources/);
+  assert.match(source, /resourceSection\('Embedded', document\.subResources/);
   assert.match(source, /className: 'resource-id'/);
   assert.match(source, /className: 'resource-type'/);
   assert.match(source, /className: 'resource-list'/);
